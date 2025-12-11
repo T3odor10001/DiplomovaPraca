@@ -1,0 +1,69 @@
+@startuml
+class BackgroundManager {
+  + animation_frames
+  + animation_running
+  + colors
+  + current_frame
+  + main_frame
+  + style
+  + __init__()
+  + animate_transition()
+  + get_colors()
+  + interpolate_color()
+  + update_background()
+}
+
+class WeatherApp {
+  + API_KEY
+  + BASE_URL
+  + FORECAST_URL
+  + bg_manager
+  + city_combo
+  + city_var
+  + condition_label
+  + date_label
+  + excel_file
+  + feels_like_label
+  + forecast_labels
+  + humidity_label
+  + last_updated_label
+  + main_frame
+  + pressure_label
+  + root
+  + search_history
+  + sunrise_label
+  + sunset_label
+  + temp_label
+  + temp_unit
+  + time_label
+  + visibility_label
+  + weather_icon_label
+  + wind_label
+  + __init__()
+  + create_datetime_display()
+  + create_footer()
+  + create_forecast_section()
+  + create_location_section()
+  + create_weather_display()
+  + get_weather()
+  + initialize_excel_log()
+  + log_to_excel()
+  + update_datetime()
+  + update_forecast_display()
+  + update_forecast_icon()
+  + update_temperature_display()
+  + update_weather_display()
+  + update_weather_icon()
+}
+
+BackgroundManager --> WeatherApp
+WeatherApp ..> PIL
+WeatherApp ..> datetime
+WeatherApp ..> io
+WeatherApp ..> os
+WeatherApp ..> pandas
+WeatherApp ..> requests
+WeatherApp ..> tkinter
+background_manager --> BackgroundManager
+WeatherApp <|-- weather_app_class
+@enduml
