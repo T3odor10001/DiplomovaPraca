@@ -1,27 +1,21 @@
-# langgraph_workflows.py
 from __future__ import annotations
 
 from typing import TypedDict, Optional, Dict, Any, Callable
 from langgraph.graph import StateGraph, END
 
-
 class DocReviewState(TypedDict, total=False):
     path: str
     code: str
 
-    # kontrola iterácií
     round: int
     max_rounds: int
 
-    # vstup pre docwriter
     feedback_for_writer: str
 
-    # výstupy
     documentation: str
     review_text: str
     decision: Optional[str]
     feedback: str
-
 
 def parse_decision(text: str):
     upper = text.upper()
@@ -38,7 +32,6 @@ def parse_decision(text: str):
         feedback = text[idx + len("FEEDBACK:") :].strip()
 
     return decision, feedback
-
 
 def build_doc_review_graph(docwriter, reviewer):
     """
@@ -74,7 +67,6 @@ def build_doc_review_graph(docwriter, reviewer):
             "feedback": feedback,
         }
 
-        # ak treba pokračovať, pripravíme feedback pre ďalší write krok
         if decision != "APPROVE":
             updates["feedback_for_writer"] = feedback or (
                 "Please fix coverage, correctness, clarity, and parameter notes as needed."
@@ -84,11 +76,9 @@ def build_doc_review_graph(docwriter, reviewer):
         return updates
 
     def should_continue(state: DocReviewState) -> str:
-        # schválené => koniec
         if state.get("decision") == "APPROVE":
             return "end"
 
-        # vyčerpané iterácie => koniec
         if int(state.get("round", 0)) >= int(state.get("max_rounds", 2)):
             return "end"
 

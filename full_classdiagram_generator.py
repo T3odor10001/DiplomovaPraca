@@ -1,15 +1,12 @@
 import os
 import ast
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from langchain_ollama.llms import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
 
-# využijeme existujúceho analyzátora modulov z plantuml_generator.py
 from plantuml_generator import analyze_repo_structure
-
-
-# ---------- REPREZENTÁCIA TRIED ----------
+from code_indexer import IndexedFile
 
 class ClassInfo:
     """Reprezentácia jednej triedy v projekte."""
@@ -28,9 +25,6 @@ class ClassInfo:
         if name and name not in self.methods:
             self.methods.append(name)
 
-
-# ---------- PARSOVANIE KÓDU ----------
-
 class ClassCollector(ast.NodeVisitor):
     """
     AST visitor:
@@ -46,25 +40,20 @@ class ClassCollector(ast.NodeVisitor):
         self.classes: List[ClassInfo] = []
         self._current_class: ClassInfo | None = None
 
-    # ClassDef
     def visit_ClassDef(self, node: ast.ClassDef):
         cls = ClassInfo(name=node.name, module=self.module)
         self.classes.append(cls)
         prev = self._current_class
         self._current_class = cls
 
-        # prejdeme telo triedy
         for stmt in node.body:
-            # class-level atribúty: X = ...
             if isinstance(stmt, ast.Assign):
                 for target in stmt.targets:
                     if isinstance(target, ast.Name):
                         cls.add_attribute(target.id)
 
-            # metódy
             if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 cls.add_method(stmt.name)
-                # vnútri metódy hľadáme self.xxx = ...
                 for sub in ast.walk(stmt):
                     if isinstance(sub, ast.Assign):
                         for t in sub.targets:
@@ -76,10 +65,8 @@ class ClassCollector(ast.NodeVisitor):
                             ):
                                 cls.add_attribute(t.attr)
 
-        # rekurzia (napr. vnorené triedy)
         self.generic_visit(node)
         self._current_class = prev
-
 
 def extract_classes_from_code(source: str, module: str) -> List[ClassInfo]:
     """Z jedného .py súboru vytiahne všetky triedy + ich atribúty/metódy."""
@@ -91,7 +78,6 @@ def extract_classes_from_code(source: str, module: str) -> List[ClassInfo]:
     collector = ClassCollector(module=module)
     collector.visit(tree)
     return collector.classes
-
 
 def scan_repo_for_classes(files: Dict[str, str], base_dir: str) -> List[ClassInfo]:
     """Prejde všetky .py súbory a nazbiera ClassInfo."""
@@ -107,9 +93,6 @@ def scan_repo_for_classes(files: Dict[str, str], base_dir: str) -> List[ClassInf
 
     return all_classes
 
-
-# ---------- RENDERING TRIED DO PLANTUML ----------
-
 def render_classes_to_plantuml(classes: List[ClassInfo]) -> str:
     """
     Deterministicky vyrenderuje všetky triedy do PlantUML:
@@ -119,18 +102,13 @@ def render_classes_to_plantuml(classes: List[ClassInfo]) -> str:
     lines: List[str] = []
     for cls in sorted(classes, key=lambda c: (c.module, c.name)):
         lines.append(f"class {cls.name} {{")
-        # atribúty
         for attr in sorted(cls.attributes):
             lines.append(f"  + {attr}")
-        # metódy
         for m in sorted(cls.methods):
             lines.append(f"  + {m}()")
         lines.append("}")
         lines.append("")
-    return "\n".join(lines).rstrip()  # bez posledného prázdneho riadku
-
-
-# ---------- PROMPT PRE LLM – VZŤAHY MEDZI TRIEDAMI ----------
+    return "\n".join(lines).rstrip()
 
 RELATIONS_UML_TEMPLATE = """
 You are an AI assistant that generates ONLY PlantUML relationship lines between classes.
@@ -165,12 +143,10 @@ INPUT STRUCTURE DESCRIPTION:
 {class_list}
 """
 
-
 def create_relations_chain(model_name: str = "llama3.2"):
     model = OllamaLLM(model=model_name)
     prompt = ChatPromptTemplate.from_template(RELATIONS_UML_TEMPLATE)
     return prompt | model
-
 
 def is_relation_line(line: str) -> bool:
     """
@@ -179,31 +155,29 @@ def is_relation_line(line: str) -> bool:
     s = line.strip()
     if not s:
         return False
-    # zakážeme definície tried, komentáre, markdown
     if s.startswith("class ") or s.startswith("@startuml") or s.startswith("@enduml"):
         return False
     if s.startswith("#") or s.startswith("* ") or s.startswith("```"):
         return False
 
-    # jednoduché šípky medzi triedami
     if "--" in s or ".." in s or "<|" in s or "*--" in s or "o--" in s:
         return True
 
     return False
-
-
-# ---------- HLAVNÁ FUNKCIA PRE MAIN.PY ----------
 
 def generate_full_classdiagram(
     files: Dict[str, str],
     base_dir: str,
     output_file: str = "full_classes.puml",
     model_name: str = "llama3.2",
+    code_index: Optional[Dict[str, IndexedFile]] = None,
 ):
     """
     - analyzuje moduly (importy) aj triedy (atribúty, metódy)
     - class bloky v PlantUML generuje deterministicky (bez LLM)
     - LLM agent generuje LEN vzťahy medzi triedami
+    - When code_index (enriched) is provided, the LLM receives file purpose
+      descriptions for more accurate relationship inference.
     - výsledok zapíše ako kompletný @startuml ... @enduml diagram
     """
     classes = scan_repo_for_classes(files, base_dir)
@@ -211,23 +185,38 @@ def generate_full_classdiagram(
         print("No classes found.")
         return
 
-    modules = analyze_repo_structure(files, base_dir)  # z plantuml_generator.py
+    modules = analyze_repo_structure(files, base_dir)
 
-    # index: modul -> zoznam tried
+    index_by_module: Dict[str, IndexedFile] = {}
+    if code_index:
+        for rel_path, entry in code_index.items():
+            mod = rel_path.replace("/", ".").replace("\\", ".")
+            if mod.endswith(".py"):
+                mod = mod[:-3]
+            index_by_module[mod] = entry
+
     classes_by_module: Dict[str, List[ClassInfo]] = {}
     for cls in classes:
         classes_by_module.setdefault(cls.module, []).append(cls)
 
-    # 1) text pre LLM – modulový prehľad + detaily tried
     overview_lines: List[str] = []
 
     overview_lines.append("MODULE OVERVIEW:")
     for mname, minfo in sorted(modules.items(), key=lambda kv: kv[0]):
         overview_lines.append(f"MODULE: {mname}")
+        indexed = index_by_module.get(mname)
+        if indexed and indexed.llm_summary:
+            overview_lines.append(f"  PURPOSE: {indexed.llm_summary}")
+        if indexed and indexed.docstring:
+            overview_lines.append(f"  DOCSTRING: {indexed.docstring[:200]}")
         if mname in classes_by_module:
             overview_lines.append("  CLASSES:")
             for cls in sorted(classes_by_module[mname], key=lambda c: c.name):
-                overview_lines.append(f"    - {cls.name}")
+                bases = (indexed.class_bases.get(cls.name, []) if indexed else [])
+                if bases:
+                    overview_lines.append(f"    - {cls.name} (extends {', '.join(bases)})")
+                else:
+                    overview_lines.append(f"    - {cls.name}")
         if minfo.imports:
             overview_lines.append("  IMPORTS:")
             for imp in sorted(minfo.imports):
@@ -238,6 +227,11 @@ def generate_full_classdiagram(
     for cls in sorted(classes, key=lambda c: (c.module, c.name)):
         overview_lines.append(f"CLASS: {cls.name}")
         overview_lines.append(f"MODULE: {cls.module}")
+        indexed = index_by_module.get(cls.module)
+        if indexed:
+            bases = indexed.class_bases.get(cls.name, [])
+            if bases:
+                overview_lines.append(f"EXTENDS: {', '.join(bases)}")
         if cls.attributes:
             overview_lines.append("ATTRIBUTES:")
             for a in sorted(cls.attributes):
@@ -250,7 +244,6 @@ def generate_full_classdiagram(
 
     class_text = "\n".join(overview_lines)
 
-    # 2) LLM – nech vygeneruje iba šípky
     chain = create_relations_chain(model_name=model_name)
 
     print("Generating full repository class relationships via LLM agent...")
@@ -263,15 +256,13 @@ def generate_full_classdiagram(
         if is_relation_line(ln):
             relation_lines.append(ln.strip())
 
-    # 3) deterministic class bloky
     classes_block = render_classes_to_plantuml(classes)
 
-    # 4) zložíme finálny diagram
     out_lines: List[str] = []
     out_lines.append("@startuml")
     out_lines.append(classes_block)
     if relation_lines:
-        out_lines.append("")  # medzera
+        out_lines.append("")
         out_lines.extend(relation_lines)
     out_lines.append("@enduml")
 

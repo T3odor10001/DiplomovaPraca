@@ -4,16 +4,14 @@ from dataclasses import dataclass
 from collections import Counter
 from typing import Dict, List, Tuple
 
-
 @dataclass
 class FunctionRecord:
-    file_path: str      # absolútna cesta k súboru
-    rel_path: str       # relatívna cesta voči rootu repozitára
-    qualname: str       # Class.method alebo function_name
-    name: str           # len názov funkcie/metódy
-    lineno: int         # číslo riadku
-    importance: float = 0.0  # dôležitosť, dopočítavame neskôr
-
+    file_path: str
+    rel_path: str
+    qualname: str
+    name: str
+    lineno: int
+    importance: float = 0.0
 
 class RepoAnalyzer(ast.NodeVisitor):
     """
@@ -24,7 +22,6 @@ class RepoAnalyzer(ast.NodeVisitor):
 
     def __init__(self, file_path: str, base_dir: str):
         self.file_path = file_path
-        # relatívna cesta voči rootu repozitára (base_dir)
         self.rel_path = file_path.replace(base_dir + "\\", "").replace(base_dir + "/", "")
         self._class_stack: List[str] = []
         self.functions: List[Tuple[FunctionRecord, ast.AST]] = []
@@ -61,16 +58,13 @@ class RepoAnalyzer(ast.NodeVisitor):
 
     def visit_Call(self, node: ast.Call):
         name = None
-        # volanie typu foo(...)
         if isinstance(node.func, ast.Name):
             name = node.func.id
-        # volanie typu obj.method(...)
         elif isinstance(node.func, ast.Attribute):
             name = node.func.attr
         if name:
             self.called_names.append(name)
         self.generic_visit(node)
-
 
 def _compute_function_metrics(node: ast.AST) -> Tuple[int, int, int, int, int]:
     """
@@ -86,7 +80,6 @@ def _compute_function_metrics(node: ast.AST) -> Tuple[int, int, int, int, int]:
     method_count = 1
     call_count = sum(isinstance(n, ast.Call) for n in ast.walk(node))
 
-    # LOC – pokúsime sa použiť end_lineno, ak je dostupné
     if hasattr(node, "end_lineno") and hasattr(node, "lineno"):
         loc = max(1, int(node.end_lineno) - int(node.lineno) + 1)
     else:
@@ -98,7 +91,6 @@ def _compute_function_metrics(node: ast.AST) -> Tuple[int, int, int, int, int]:
     complexity = sum(isinstance(n, complexity_nodes) for n in ast.walk(node))
 
     return method_count, call_count, loc, attr_count, complexity
-
 
 def _calculate_importance_index(
     method_count: int,
@@ -124,7 +116,6 @@ def _calculate_importance_index(
     )
     return round(index, 2)
 
-
 def print_top_important_functions(
     files: Dict[str, str],
     base_dir: str,
@@ -141,7 +132,6 @@ def print_top_important_functions(
     func_nodes: List[ast.AST] = []
     all_called_names: List[str] = []
 
-    # 1. Prejdeme všetky súbory – nazbierame funkcie + volania
     for file_path, code in files.items():
         try:
             tree = ast.parse(code)
@@ -165,7 +155,6 @@ def print_top_important_functions(
     total_functions = len(all_func_records)
     call_counter = Counter(all_called_names)
 
-    # 2. Spočítame importance index pre každú funkciu/metódu
     for rec, node in zip(all_func_records, func_nodes):
         method_count, call_count, loc, attr_count, complexity = _compute_function_metrics(node)
         dependents = call_counter.get(rec.name, 0)
@@ -180,7 +169,6 @@ def print_top_important_functions(
             total_functions=total_functions,
         )
 
-    # 3. TOP N
     top_funcs = sorted(all_func_records, key=lambda r: r.importance, reverse=True)[:top_n]
 
     print(f"\nTop {len(top_funcs)} most important functions/methods in repository:\n")
@@ -201,7 +189,6 @@ def get_top_important_functions(
     func_nodes: List[ast.AST] = []
     all_called_names: List[str] = []
 
-    # 1. Prejdeme všetky súbory – nazbierame funkcie + volania
     for file_path, code in files.items():
         try:
             tree = ast.parse(code)
@@ -224,7 +211,6 @@ def get_top_important_functions(
     total_functions = len(all_func_records)
     call_counter = Counter(all_called_names)
 
-    # 2. Spočítame importance index pre každú funkciu/metódu
     for rec, node in zip(all_func_records, func_nodes):
         method_count, call_count, loc, attr_count, complexity = _compute_function_metrics(node)
         dependents = call_counter.get(rec.name, 0)
@@ -239,10 +225,8 @@ def get_top_important_functions(
             total_functions=total_functions,
         )
 
-    # 3. TOP N
     top_funcs = sorted(all_func_records, key=lambda r: r.importance, reverse=True)[:top_n]
     return top_funcs
-
 
 def print_top_important_functions(
     files: Dict[str, str],

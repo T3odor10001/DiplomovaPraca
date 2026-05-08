@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated outputs
+*.png
+*.svg
+!architecture.svg
+documentation.txt
+patterns.md
+INSTALLATION.md.bak
+classes.puml
+classes.highlight.puml
+top_dependencies.puml
+top_dependencies.highlight.puml
+full_system.puml
+architecture.puml
+claudeclass.puml
+claudedoc.txt
+doc.txt
+gg.txt
+component.puml
+graph.txt
+
+# Cloned repos (temp)
+cloned_repo/
+cloned_repo_*/
+
+# Archive files
+*.zip
+*.rar
+*.tar.gz
+
+# Tools (PlantUML jar must be downloaded by user)
+tools/plantuml.jar
+
+# Logs
+*.log

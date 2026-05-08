@@ -1,218 +1,239 @@
-# Installation Guide
+# Inštalačná príručka — AI Documentation & Code Explorer
 
-## 1. Introduction
+Aplikácia na automatické generovanie dokumentácie, UML diagramov a rozpoznávanie architektúry/dizajnových vzorov pre Python repozitáre. Využíva lokálny LLM cez Ollama (model `llama3.2`).
 
-This project is a Python-based weather data management system designed to process and analyze weather log data from various sources. The primary purpose of this project is to provide a centralized platform for managing, processing, and visualizing weather-related data.
+---
 
-The architecture of the project consists of several modules, including `background_manager.py`, which handles data ingestion and processing, and `main.py`, which serves as the entry point for running the application. This guide will walk you through installing and configuring the project on your local machine.
+## 1. Systémové požiadavky
 
-## 2. System Requirements
+| Komponent | Verzia / popis |
+|-----------|----------------|
+| Python    | 3.10 alebo vyššie |
+| Java JRE  | 8 alebo vyššie (potrebné pre PlantUML) |
+| Ollama    | aktuálna verzia (lokálny LLM runtime) |
+| Git       | aktuálna verzia |
+| RAM       | minimálne 8 GB (odporúčané 16 GB pre väčšie repozitáre) |
+| OS        | Windows 10/11, Linux, macOS |
 
-- Minimum Python version: Python 3.10+
-- Required tools:
-    - Git (version 2.x or higher)
-    - pip
-    - virtualenv (optional, but recommended for development and production environments)
-    - Ollama (for LLM model management; installation instructions below)
-    - Docker (if relevant to your use case)
-- Supported operating systems: Windows, Linux, macOS
-- CPU/RAM recommendations:
-    - For general usage: 2-4 GB RAM
-    - For heavy usage or LLM integration: 8-16 GB RAM
-- Download links:
-    - Python: <https://www.python.org/downloads/>
-    - Git: <https://git-scm.com/downloads>
-    - virtualenv: <https://virtualenv.pypa.io/en/stable/>
-    - Ollama: <https://ollama.dev/>
+---
 
-## 3. Cloning the Repository
+## 2. Inštalácia základných nástrojov
 
-To clone the repository, follow these steps:
+### 2.1 Python
 
-### Windows (PowerShell)
+Stiahni a nainštaluj Python 3.10+ z [python.org](https://www.python.org/downloads/).
+
+Overenie:
+```bash
+python --version
+```
+
+### 2.2 Git
+
+Stiahni z [git-scm.com](https://git-scm.com/).
+
+Overenie:
+```bash
+git --version
+```
+
+### 2.3 Java JRE
+
+Potrebná na renderovanie PlantUML diagramov do PNG/SVG.
+
+- Windows: nainštaluj [Eclipse Temurin](https://adoptium.net/) alebo Oracle JRE.
+- Linux: `sudo apt install default-jre`
+- macOS: `brew install openjdk`
+
+Overenie:
+```bash
+java -version
+```
+
+### 2.4 Ollama (lokálny LLM)
+
+Aplikácia používa lokálne bežiaci LLM model **llama3.2** cez [Ollama](https://ollama.com/).
+
+1. Stiahni Ollama z [ollama.com/download](https://ollama.com/download).
+2. Nainštaluj a spusti.
+3. Stiahni model:
+   ```bash
+   ollama pull llama3.2
+   ```
+4. Over, že beží:
+   ```bash
+   ollama list
+   ```
+
+Ollama štandardne beží na `http://localhost:11434` — aplikácia ho automaticky nájde.
+
+---
+
+## 3. Klonovanie projektu
 
 ```bash
-git clone https://github.com/your-repo-url.git
-cd your-repo-folder
+git clone https://github.com/T3odor10001/DiplomovaPraca.git
+cd DiplomovaPraca
+```
+
+---
+
+## 4. Vytvorenie virtuálneho prostredia
+
+### Windows (PowerShell)
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+### Windows (cmd)
+```cmd
+python -m venv .venv
+.venv\Scripts\activate.bat
 ```
 
 ### Linux / macOS
-
 ```bash
-git clone https://github.com/your-repo-url.git
-cd your-repo-folder
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
-## 4. Creating a Virtual Environment
+---
 
-A virtual environment is a self-contained Python environment that allows you to manage dependencies and isolation between projects.
-
-Create a new virtual environment using the following commands:
-
-### Windows (PowerShell)
+## 5. Inštalácia Python závislostí
 
 ```bash
-py -3 -m venv venv
-venv\Scripts\activate
-```
-
-### Linux / macOS
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-## 5. Installing Dependencies
-
-To install the project's dependencies, follow these steps:
-
-- If `requirements.txt` exists:
-    ```bash
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
-- If `pyproject.toml` exists:
-    ```bash
-pip install .
+
+Kompletný zoznam závislostí (`requirements.txt`):
+- `streamlit` — webové UI
+- `Pillow` — práca s obrázkami
+- `gitpython` — klonovanie repozitárov
+- `langchain` — orchestrácia LLM
+- `langchain-ollama` — Ollama integrácia
+- `langchain-core` — základné LangChain typy
+- `langgraph` — workflow grafy pre review agenta
+
+---
+
+## 6. Inštalácia PlantUML
+
+PlantUML je `.jar` súbor potrebný na renderovanie diagramov.
+
+1. Vytvor priečinok `tools` v koreňovom adresári projektu:
+   ```bash
+   mkdir tools
+   ```
+2. Stiahni `plantuml.jar` z [plantuml.com/download](https://plantuml.com/download).
+3. Ulož súbor ako `tools/plantuml.jar`.
+
+Štruktúra by mala vyzerať takto:
+```
+DiplomovaPraca/
+├── tools/
+│   └── plantuml.jar
+├── app.py
+├── main.py
+└── ...
 ```
 
-The dependencies listed in `requirements.txt` are necessary for running the project.
+---
 
-## 6. Setting Up Ollama / LLM Models (if used)
+## 7. Spustenie aplikácie
 
-If your project depends on Ollama or LLM models, follow these steps to set them up:
+### 7.1 Streamlit web UI (odporúčané)
 
-- Install Ollama:
-    ```bash
-pip install ollama
-```
-- Verify daemon status:
-    ```
-ollama list
-ollama run llama3.2
-```
-- Download an LLM model (e.g., `llama3.2`):
-    ```
-ollama pull llama3.2
+```bash
+streamlit run app.py
 ```
 
-## 7. Running the Project
+Otvorí sa prehliadač na adrese `http://localhost:8501`.
 
-To run the project, follow these steps:
+V UI:
+1. Zadaj URL Git repozitára (napr. `https://github.com/user/repo`).
+2. Vyber akciu z menu vľavo:
+   - **Generate Documentation** — vygeneruje dokumentáciu súborov
+   - **Top 10 Important Functions** — zobrazí 10 najdôležitejších funkcií
+   - **Generate Top10 Class Diagram** — UML class diagram top funkcií
+   - **Generate Full Class Diagram** — UML diagram všetkých tried
+   - **Generate Installation Guide** — vygeneruje inštalačnú príručku
+   - **Interactive Code Explanation** — chat s diagramami
+   - **Generate Dependency Graph** — graf závislostí top funkcií
+   - **Recognize Architecture & Design Patterns** — rozpoznanie architektúry + diagram
+3. Klikni **Run**.
 
-### Running main.py
+### 7.2 CLI verzia
 
 ```bash
 python main.py
 ```
 
-This will start the application and begin processing weather log data.
+Aplikácia sa opýta na URL repozitára a ponúkne menu od 1 po 8.
 
-### Running CLI entrypoints
+---
 
-- List available entrypoints:
-    ```bash
-python -c "import ollama; print(ollama.__version__)"
+## 8. Riešenie problémov
+
+### Ollama: connection refused / WinError 10061
+- Over, že Ollama beží: `ollama list`
+- Reštartuj službu Ollama
+- Aplikácia obsahuje retry logiku — pri zlyhaní počká 3 s a skúsi znovu (max 2× pre indexovanie)
+
+### PlantUML rendering failed
+- Over Java: `java -version`
+- Over, že existuje `tools/plantuml.jar`
+- Skús ručne: `java -jar tools/plantuml.jar -tpng test.puml`
+
+### `ModuleNotFoundError: No module named 'langchain_ollama'`
+- Aktivuj virtuálne prostredie a znovu spusti `pip install -r requirements.txt`
+
+### Pomalé generovanie pri prvom spustení
+- Po klonovaní sa raz vytvorí **LLM-enriched code index** (zaberie 30 – 60 s pre stredne veľký repozitár).
+- Index je uložený v session state, ďalšie akcie sú už okamžité.
+
+### Streamlit zobrazuje starý cache
+- V termináli stlač `Ctrl+C` a spusti znovu, alebo klikni **Reset** v UI.
+
+---
+
+## 9. Štruktúra projektu
+
 ```
-- Run a specific entrypoint (e.g., `weather_analysis`):
-    ```
-python main.py weather_analysis
+DiplomovaPraca/
+├── app.py                          # Streamlit UI (hlavný entry point)
+├── main.py                         # CLI verzia + spoločné triedy (RepositoryReader)
+├── code_indexer.py                 # Indexovanie kódu + LLM enrichment
+├── context_selector.py             # Výber relevantného kontextu pre otázky
+├── code_explainer.py               # LLM vysvetľovač kódu
+├── importance_analyzer.py          # Skórovanie dôležitosti funkcií (AST)
+├── classdiagram_generator.py       # UML class diagram top 10 funkcií
+├── full_classdiagram_generator.py  # UML diagram všetkých tried
+├── top_dependency_llm.py           # Graf závislostí (deterministický + LLM)
+├── pattern_recognizer.py           # Rozpoznávanie architektúry + arch. diagram
+├── diagram_highlighter.py          # Zvýrazňovanie uzlov v diagramoch
+├── plantuml_generator.py           # AST analýza modulov
+├── plantuml_renderer.py            # Volanie Java + plantuml.jar
+├── install_guide_generator.py      # LLM generátor inštalačnej príručky
+├── langgraph_workflows.py          # Doc-writer ↔ Reviewer workflow graf
+├── code_chunker.py                 # AST-based chunking utilita
+├── tools/
+│   └── plantuml.jar                # PlantUML renderer (treba stiahnuť)
+└── requirements.txt
 ```
 
-## 8. Project Configuration
+---
 
-If you need to modify configuration settings, follow these steps:
+## 10. Použité technológie
 
-- Locate the configuration file (`config.py` or `.env`).
-- Understand what each configuration value means:
-    - `API_KEY`: Your API key for accessing weather data.
-    - `LOG_FILE`: The path where output and log files will be stored.
-- Modify configuration values as needed:
-    ```python
-# config.py
+- **LangChain + LangGraph** — orchestrácia LLM agentov a workflow grafov (DocWriter ↔ Reviewer)
+- **Ollama (llama3.2)** — lokálny jazykový model
+- **Streamlit** — webové rozhranie
+- **PlantUML** — vykresľovanie UML diagramov
+- **Python AST** — deterministická analýza kódu
+- **GitPython** — klonovanie repozitárov
 
-class Config:
-    API_KEY = "YOUR_API_KEY"
-    LOG_FILE = "/path/to/log/file.log"
+---
 
-config = Config()
-```
-    ```
-# .env
-
-API_KEY=YOUR_API_KEY
-LOG_FILE=/path/to/log/file.log
-```
-
-## 9. Project Structure
-
-The project consists of the following major directories and modules:
-
-*   `background_manager.py`: Handles data ingestion and processing.
-*   `main.py`: Serves as the entry point for running the application.
-*   `sc\`: Contains static images (e.g., `sc_1.png`, `sc_2.png`).
-*   `data\weather_log.xlsx`: A sample weather log file.
-
-## 10. Post-Installation Testing
-
-To verify that everything is working correctly, follow these steps:
-
-- Run a basic testing function:
-    ```bash
-python -c "import background_manager; background_manager.test()"
-```
-    If this passes, your installation should be successful.
-
-## 11. Common Issues (Troubleshooting)
-
-Here are some common issues you might encounter and their fixes:
-
-1.  `pip cannot find module`:
-
-    *   Make sure the Python environment is correctly activated.
-    *   Check that the package is not installed in the current virtual environment.
-2.  `virtualenv cannot activate`:
-
-    *   Ensure that the virtual environment is created correctly.
-    *   Verify that the activate command works without arguments.
-3.  `Permission denied / Access denied`:
-
-    *   Ensure you have the necessary permissions to access the project directory.
-4.  Windows execution policy blocking scripts:
-
-    *   Open Command Prompt or PowerShell as administrator.
-5.  Git clone errors:
-
-    *   Check that the repository URL is correct.
-6.  Missing dependencies:
-
-    *   Run `pip install -r requirements.txt` to reinstall dependencies.
-7.  UnicodeDecodeError:
-
-    *   Ensure your system locale and encoding are correctly set up.
-8.  SSL/TLS errors:
-
-    *   Verify that your HTTPS certificates are correctly installed on the server (if applicable).
-9.  Ollama model not downloaded:
-
-    *   Check if the `pull` command was executed successfully.
-10. LangChain invalid prompt input:
-
-    *   Review and adjust the prompt format according to LangChain documentation.
-11. Missing library errors:
-
-    *   Check that you have installed all required packages.
-
-## 12. Additional Recommendations
-
--   **Using VS Code / PyCharm**: Take advantage of these IDEs for improved coding experience, code completion, debugging, and performance optimization tools.
--   **Maintaining virtual environments**: Use tools like `venv` or `conda` to create isolated Python environments for each project and team member.
--   **Performance tips**:
-    -   Optimize database queries for faster execution times.
-    -   Leverage caching mechanisms where possible (e.g., Redis).
-    -   Implement efficient data structures and algorithms.
--   **Suggested IDE extensions**: Explore various plugins for enhancing your coding workflow, such as syntax highlighting, code completion, and debugging tools.
-
-## 13. Conclusion
-
-Congratulations on successfully installing the project! You can now proceed to explore the features of this weather management system further. Consider testing more advanced functionalities or modifying existing modules to suit your needs.
+Autor: Teodor Fuček

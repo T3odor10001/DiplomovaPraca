@@ -6,19 +6,14 @@ from typing import Dict, List, Set
 from langchain_ollama.llms import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
 
-
 @dataclass
 class ModuleInfo:
     rel_path: str
-    module_name: str          # napr. "modules.CodeAnalyzer"
-    alias: str                # bezpečný alias pre PlantUML, napr. "modules_CodeAnalyzer"
+    module_name: str
+    alias: str
     classes: List[str] = field(default_factory=list)
     functions: List[str] = field(default_factory=list)
-    imports: Set[str] = field(default_factory=set)  # importované moduly (raw)
-
-
-# ---- pomocné funkcie --------------------------------------------------------
-
+    imports: Set[str] = field(default_factory=set)
 
 def _module_name_from_rel_path(rel_path: str) -> str:
     """
@@ -27,7 +22,6 @@ def _module_name_from_rel_path(rel_path: str) -> str:
     no_ext = rel_path[:-3] if rel_path.endswith(".py") else rel_path
     parts = no_ext.replace("\\", "/").split("/")
     return ".".join(parts)
-
 
 def _alias_from_module_name(module_name: str) -> str:
     """
@@ -43,12 +37,7 @@ def _alias_from_module_name(module_name: str) -> str:
         else:
             result_chars.append("_")
     alias = "".join(result_chars)
-    # poistka keby niečo – PlantUML nemá rád prázdny identifikátor
     return alias or "M"
-
-
-# ---- analýza repozitára -----------------------------------------------------
-
 
 def analyze_repo_structure(files: Dict[str, str], base_dir: str) -> Dict[str, ModuleInfo]:
     """
@@ -67,7 +56,6 @@ def analyze_repo_structure(files: Dict[str, str], base_dir: str) -> Dict[str, Mo
         try:
             tree = ast.parse(code)
         except SyntaxError:
-            # rozbitý súbor preskočíme
             continue
 
         info = ModuleInfo(rel_path=rel_path, module_name=module_name, alias=alias)
@@ -89,7 +77,6 @@ def analyze_repo_structure(files: Dict[str, str], base_dir: str) -> Dict[str, Mo
         modules[module_name] = info
 
     return modules
-
 
 def build_repo_summary(modules: Dict[str, ModuleInfo]) -> str:
     """
@@ -115,10 +102,6 @@ def build_repo_summary(modules: Dict[str, ModuleInfo]) -> str:
         lines.append("")
 
     return "\n".join(lines)
-
-
-# ---- LLM PlantUML agent -----------------------------------------------------
-
 
 PLANTUML_TEMPLATE = """
 You are a software architect.
@@ -157,7 +140,6 @@ Here is the repository summary and alias mapping:
 {summary}
 """
 
-
 def create_plantuml_chain(model_name: str = "llama3.2"):
     """
     Vytvorí LLM chain pre generovanie PlantUML component diagramu.
@@ -165,10 +147,6 @@ def create_plantuml_chain(model_name: str = "llama3.2"):
     model = OllamaLLM(model=model_name)
     prompt = ChatPromptTemplate.from_template(PLANTUML_TEMPLATE)
     return prompt | model
-
-
-# ---- hlavná funkcia pre main.py --------------------------------------------
-
 
 def generate_plantuml_for_repo(
     files: Dict[str, str],
@@ -193,7 +171,6 @@ def generate_plantuml_for_repo(
     plantuml_code = chain.invoke({"summary": summary})
     text = str(plantuml_code).strip()
 
-    # vytiahneme len blok medzi @startuml a @enduml, keby LLM kecalo niečo navyše
     lower = text.lower()
     start_idx = lower.find("@startuml")
     end_idx = lower.rfind("@enduml")
@@ -201,13 +178,11 @@ def generate_plantuml_for_repo(
     if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
         text = text[start_idx : end_idx + len("@enduml")]
     else:
-        # fallback – obalíme, ak to náhodou neposlúchlo
         if "@startuml" not in text:
             text = "@startuml\n" + text
         if "@enduml" not in text:
             text = text + "\n@enduml"
 
-    # normalizácia koncov riadkov
     text = "\n".join(line.rstrip() for line in text.splitlines())
 
     with open(output_file, "w", encoding="utf-8") as f:

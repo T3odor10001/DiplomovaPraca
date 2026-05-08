@@ -4,7 +4,6 @@ from typing import Dict, List
 from langchain_ollama.llms import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
 
-
 INSTALL_TEMPLATE = """
 You are an expert technical writer responsible for producing a highly detailed, step-by-step INSTALLATION GUIDE for a Python project. The output MUST be in English and formatted strictly in Markdown.
 
@@ -149,8 +148,6 @@ Short summary + recommendations for future steps.
 {entrypoints}
 """
 
-
-
 def _build_file_tree(base_dir: str, max_files: int = 200) -> str:
     """
     Vytvorí jednoduchý zoznam relatívnych ciest všetkých súborov,
@@ -158,7 +155,6 @@ def _build_file_tree(base_dir: str, max_files: int = 200) -> str:
     """
     paths: List[str] = []
     for root, dirs, files in os.walk(base_dir):
-        # preskoč .git a podobné
         dirs[:] = [d for d in dirs if d not in (".git", "__pycache__", ".venv", "venv")]
         for f in files:
             rel = os.path.relpath(os.path.join(root, f), base_dir)
@@ -173,7 +169,6 @@ def _build_file_tree(base_dir: str, max_files: int = 200) -> str:
 
     return "\n".join(f"- {p}" for p in sorted(paths))
 
-
 def _read_if_exists(path: str, max_chars: int = 5000) -> str:
     if not os.path.isfile(path):
         return "Súbor neexistuje."
@@ -186,7 +181,6 @@ def _read_if_exists(path: str, max_chars: int = 5000) -> str:
     if len(content) > max_chars:
         return content[:max_chars] + "\n...\n(orezané kvôli dĺžke)"
     return content
-
 
 def _detect_entrypoints(base_dir: str) -> str:
     candidates = ["__main__.py", "cli.py", "main.py", "manage.py"]
@@ -202,12 +196,10 @@ def _detect_entrypoints(base_dir: str) -> str:
         return "Nenašli sa žiadne typické entrypoint skripty."
     return "\n".join(f"- {p}" for p in sorted(found))
 
-
 def create_install_chain(model_name: str = "llama3.2"):
     model = OllamaLLM(model=model_name)
     prompt = ChatPromptTemplate.from_template(INSTALL_TEMPLATE)
     return prompt | model
-
 
 def generate_installation_guide(
     base_dir: str,
